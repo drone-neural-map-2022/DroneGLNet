@@ -35,7 +35,16 @@ class TartanAirAzureDataset(TartanAirDataset):
         return color
 
     def get_image_path(self, folder, frame_index, side):
-        mode, env, traj = folder.split('_')
+        folder_parts = folder.split('_')
+        if len(folder_parts) == 3:
+            mode, env, traj = folder_parts
+        elif len(folder_parts) == 4:
+            mode = folder_parts[0]
+            env = f'{folder_parts[1]}_{folder_parts[2]}'
+            traj = folder_parts[3]
+        else:
+            print('Error in getting image path!')
+            raise ValueError
         side = self.side_map[side]
         img_folder = "image_{}".format(side)
         f_str = "{:06d}_{}{}".format(frame_index, side, self.img_ext)

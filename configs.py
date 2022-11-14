@@ -5,7 +5,7 @@ import os
 DATA_CFG = {
     'online': True,
     'batch_size': 1,
-    'img_size': (480, 640),
+    'img_size': (240, 320),
     'frame_idxs': [-1, 0, 1, 2],
     'scales': 4,
 
@@ -20,9 +20,9 @@ DATA_CFG = {
 GLNET_LOSS_CFG = {
     'img_size': DATA_CFG['img_size'],
     'scales': DATA_CFG['scales'],
-    'mvs_weight': 1.,
-    'epi_weight': 1.,
-    'apc_weight': 1.,
+    'mvs_weight': 10.,
+    'epi_weight': 10.,
+    'apc_weight': 0.1,
     'disp_smooth': 0.5,
     'flow_smooth': 0.2,
     'flow_cons_params': (3.0, 0.05),
@@ -51,6 +51,6 @@ GLNET_CFG = {
     'shared_resnet': False,
     'frame_ids': DATA_CFG['frame_idxs'],
     'scales': DATA_CFG['scales'],
-    'depth_limits': (0.1, 100.0),
+    'depth_limits': (0.1, 50.0),
     'loss_parameters': GLNET_LOSS_CFG
 }

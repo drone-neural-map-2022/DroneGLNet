@@ -61,7 +61,7 @@ def setup_dataloaders():
     val_loader = DataLoader(
         val_set,
         batch_size=DATA_CFG['batch_size'],
-        shuffle=True,
+        shuffle=False,
         num_workers=DATA_CFG['num_workers'],
         pin_memory=True
     )

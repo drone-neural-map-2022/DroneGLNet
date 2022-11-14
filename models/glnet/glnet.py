@@ -164,7 +164,8 @@ class GLNet(pl.LightningModule):
                 self.depth_decoder(
                     self.depth_encoder(
                         image_stack[:, f_idx:f_idx + self.depth_input_num]
-                        .view(inp_shape[0], -1, *inp_shape[-2:]).contiguous()
+                        .view(inp_shape[0], -1, *inp_shape[-2:]).contiguous(),
+                        norm_input=True
                     )
                 )
 
@@ -187,7 +188,8 @@ class GLNet(pl.LightningModule):
                 self.flow_decoder(
                     self.flow_encoder(
                         image_stack[:, fg_list]
-                        .view(inp_shape[0], -1, *inp_shape[-2:]).contiguous()
+                        .view(inp_shape[0], -1, *inp_shape[-2:]).contiguous(),
+                        norm_input=True
                     )
                 )
 
@@ -196,7 +198,8 @@ class GLNet(pl.LightningModule):
                     self.flow_decoder(
                         self.flow_encoder(
                             image_stack[:, fg_list[::-1]]
-                            .view(inp_shape[0], -1, *inp_shape[-2:]).contiguous()
+                            .view(inp_shape[0], -1, *inp_shape[-2:]).contiguous(),
+                            norm_input=True
                         )
                     )
 
