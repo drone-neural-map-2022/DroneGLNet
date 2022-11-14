@@ -3,15 +3,16 @@ import os
 
 
 DATA_CFG = {
+    'online': True,
     'batch_size': 1,
     'img_size': (480, 640),
     'frame_idxs': [-1, 0, 1, 2],
     'scales': 4,
 
     'set_root': r'C:\Users\tormi\Documents\Egyetem\Research\Data\TartanAIR',
-    'train_txt': os.path.join(os.getcwd(), "assets", "tartanair_splits", "Easy", "train_files.txt"),
-    'val_txt': os.path.join(os.getcwd(), "assets", "tartanair_splits", "Easy", "val_files.txt"),
-    'test_txt': os.path.join(os.getcwd(), "assets", "tartanair_splits", "Easy", "test_files_abandonedfactory_P010.txt"),
+    'train_txt': os.path.join(os.getcwd(), "assets", "tartanair_splits", "azure", "Easy", "train_files.txt"),
+    'val_txt': os.path.join(os.getcwd(), "assets", "tartanair_splits", "azure",  "Easy", "val_files.txt"),
+    'test_txt': os.path.join(os.getcwd(), "assets", "tartanair_splits", "Easy", "azure", "test_files_abandonedfactory_P010.txt"),
     'num_workers': 1
 }
 

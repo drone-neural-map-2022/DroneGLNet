@@ -6,6 +6,7 @@ from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 
 from dataset.tartanair_dataset import TartanAirDataset
+from dataset.tartanair_dataset_azure import TartanAirAzureDataset
 from models.glnet.glnet import GLNet
 from configs import DATA_CFG, GLNET_CFG
 
@@ -29,7 +30,9 @@ def setup_dataloaders():
     train_file_names = readlines(DATA_CFG['train_txt'])
     val_file_names = readlines(DATA_CFG['val_txt'])
 
-    train_set = TartanAirDataset(
+    dataset = TartanAirDataset if not DATA_CFG['online'] else TartanAirAzureDataset
+
+    train_set = dataset(
         data_path=DATA_CFG['set_root'],
         filenames=train_file_names,
         height=DATA_CFG['img_size'][0],
@@ -46,7 +49,7 @@ def setup_dataloaders():
         pin_memory=True
     )
 
-    val_set = TartanAirDataset(
+    val_set = dataset(
         data_path=DATA_CFG['set_root'],
         filenames=val_file_names,
         height=DATA_CFG['img_size'][0],
