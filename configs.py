@@ -1,5 +1,14 @@
 
 import os
+import torch
+
+
+ON_GPU = torch.cuda.is_available()
+
+
+TRAIN_CFG = {
+    'epochs': 20,
+}
 
 
 DATA_CFG = {
@@ -13,7 +22,7 @@ DATA_CFG = {
     'train_txt': os.path.join(os.getcwd(), "assets", "tartanair_splits", "azure", "Easy", "train_files.txt"),
     'val_txt': os.path.join(os.getcwd(), "assets", "tartanair_splits", "azure",  "Easy", "val_files.txt"),
     'test_txt': os.path.join(os.getcwd(), "assets", "tartanair_splits", "Easy", "azure", "test_files_abandonedfactory_P010.txt"),
-    'num_workers': 1
+    'num_workers': 8
 }
 
 

@@ -1,6 +1,5 @@
 import numpy as np
 import torch
-import pytorch_lightning as pl
 from itertools import combinations
 
 from models.glnet.modules.glnet_loss import GLNetLoss
@@ -11,7 +10,7 @@ from models.glnet.modules.networks.depth_decoder import DepthDecoder
 from models.glnet.modules.networks.flow_decoder import FlowDecoder
 
 
-class GLNet(pl.LightningModule):
+class GLNet:
     def __init__(
             self,
             pose_input_num: int,
@@ -32,8 +31,6 @@ class GLNet(pl.LightningModule):
             frame_ids: list = None,
             scales: int = 4
     ):
-        super(GLNet, self).__init__()
-
         self.shared_resnet = shared_resnet
         self.intrinsics = pred_intrinsics
 
@@ -66,68 +63,51 @@ class GLNet(pl.LightningModule):
                                         flow_output_num, flow_use_skips)
 
         self.glnet_loss = GLNetLoss(**loss_parameters)
-        self.save_hyperparameters()
-
-        self.val = None
+        parameter_dict_list = [
+            {'params': self.depth_decoder.parameters()},
+            {'params': self.depth_encoder.parameters()},
+            {'params': self.camera_net.parameters()},
+            {'params': self.flow_decoder.parameters()},
+        ]
+        if not self.shared_resnet:
+            parameter_dict_list.append({'params': self.flow_encoder.parameters()})
+        self.optimizer = torch.optim.Adam(parameter_dict_list, lr=2e-4, betas=(0.9, 0.999))
 
     def forward(self, input: dict) -> dict:
-        pass
-        # outputs = {}
-        #
-        # pose_list = self.camera_net(input['pose'])
-        # outputs.update({
-        #     'axisangle': pose_list[0],
-        #     'translation': pose_list[1]
-        # })
-        # if self.intrinsics:
-        #     outputs.update({
-        #         'intrinsics': pose_list[2]
-        #     })
-        #
-        # disp_dict = self.depth_decoder(
-        #     self.depth_encoder(
-        #         input['disp']
-        #     )
-        # )
-        # outputs.update({
-        #     'disp': disp_dict
-        # })
-        #
-        # flow_dict = self.flow_decoder(
-        #     self.flow_encoder(
-        #         input['flow']
-        #     )
-        # )
-        # outputs.update({
-        #     'flow': flow_dict
-        # })
-        #
-        # return outputs
+        raise NotImplementedError
 
-    def training_step(self, batch: dict, *args, **kwargs):
-        self.val = True
+    def training_step(self, batch: dict):
+        self.train()
+
         all_color_aug = torch.stack([batch[('color_aug', i, 0)] for i in self.frame_ids], dim=1)
         disps, poses, flows_fwd, flows_bwd = self.__predict_for_train_val(all_color_aug)
 
         # Convert disparities to depths
-        depths = {}
-        for frame, disp in disps.items():
-            depth_dict = {}
-            for scale in range(self.scales):
-                depth_dict[('depth', scale)] = \
-                    disp2depth(disp[('disp', scale)], self.depth_limits[0], self.depth_limits[1])[1]
-            depths[frame] = depth_dict
+        depths = self.__disps2depths(disps)
 
         loss, loss_parts = self.glnet_loss(batch, depths, poses, flows_fwd, self.scales, disps, flows_bwd)
-        loss_parts['total_loss'] = loss
-        self.log('Train', loss_parts, on_step=True)
-        return loss
 
-    def validation_step(self, batch: dict, *args, **kwargs):
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+
+        loss_parts['total_loss'] = loss
+        return loss_parts
+
+    def validation_step(self, batch: dict):
+        self.eval()
+
         all_color = torch.stack([batch[('color', i, 0)] for i in self.frame_ids], dim=1)
         disps, poses, flows_fwd, flows_bwd = self.__predict_for_train_val(all_color)
 
         # Convert disparities to depths
+        depths = self.__disps2depths(disps)
+
+        loss, loss_parts = self.glnet_loss(batch, depths, poses, flows_fwd, self.scales, disps, flows_bwd)
+        loss_parts['total_loss'] = loss
+        return loss_parts
+
+    def __disps2depths(self, disps):
         depths = {}
         for frame, disp in disps.items():
             depth_dict = {}
@@ -135,17 +115,7 @@ class GLNet(pl.LightningModule):
                 depth_dict[('depth', scale)] = \
                     disp2depth(disp[('disp', scale)], self.depth_limits[0], self.depth_limits[1])[1]
             depths[frame] = depth_dict
-
-        loss, loss_parts = self.glnet_loss(batch, depths, poses, flows_fwd, self.scales, disps, flows_bwd)
-        loss_parts['total_loss'] = loss
-        self.log('validation', loss_parts, batch_size=all_color.shape[0])
-        if self.val:
-            self.logger.experiment.add_image('Color', batch[('color', 0, 0)][0])
-            self.logger.experiment.add_image('Disp', disps[0][('disp', 0)][0])
-            # self.logger.experiment.add_image('FwdFlow', list(flows_fwd.values())[0][('flow', 0)][0])
-            # self.logger.experiment.add_image('BwdFlow', list(flows_bwd.values())[0][('flow', 0)][0])
-            self.val = False
-        return loss
+        return depths
 
     def __predict_for_train_val(self, image_stack: torch.Tensor, is_train: bool = True):
         inp_shape = image_stack.shape
@@ -204,6 +174,35 @@ class GLNet(pl.LightningModule):
                     )
 
         return disps, poses, flows_fwd, flows_bwd
-
-    def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=2e-4, betas=(0.9, 0.999))
+    
+    def train(self):
+        self.depth_decoder.train()
+        self.depth_encoder.train()
+        self.camera_net.train()
+        self.flow_decoder.train()
+        if not self.shared_resnet:
+            self.flow_encoder.train()
+            
+    def eval(self):
+        self.depth_decoder.eval()
+        self.depth_encoder.eval()
+        self.camera_net.eval()
+        self.flow_decoder.eval()
+        if not self.shared_resnet:
+            self.flow_encoder.eval()
+            
+    def cuda(self):
+        self.depth_decoder.cuda()
+        self.depth_encoder.cuda()
+        self.camera_net.cuda()
+        self.flow_decoder.cuda()
+        if not self.shared_resnet:
+            self.flow_encoder.cuda()
+            
+    def cpu(self):
+        self.depth_decoder.cpu()
+        self.depth_encoder.cpu()
+        self.camera_net.cpu()
+        self.flow_decoder.cpu()
+        if not self.shared_resnet:
+            self.flow_encoder.cpu()

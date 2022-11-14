@@ -1,29 +1,69 @@
 
 import os
-
-import torch.cuda
 from torch.utils.data import DataLoader
-import pytorch_lightning as pl
+from torch.utils.tensorboard import SummaryWriter
+from datetime import datetime
+from tqdm import tqdm
 
 from dataset.tartanair_dataset import TartanAirDataset
 from dataset.tartanair_dataset_azure import TartanAirAzureDataset
 from models.glnet.glnet import GLNet
-from configs import DATA_CFG, GLNET_CFG
+from configs import DATA_CFG, GLNET_CFG, TRAIN_CFG, ON_GPU
 
 
 def main():
+    log_dir = os.path.join(os.getcwd(), 'logs', datetime.now().strftime('%m%d%Y_%H%M%S'))
+    os.makedirs(log_dir)
+    logger = SummaryWriter(log_dir)
+
     # Dataloading
     train_loader, val_loader = setup_dataloaders()
 
     model = GLNet(**GLNET_CFG)
-    trainer = pl.Trainer(accelerator='gpu' if torch.cuda.is_available() else 'cpu',
-                         devices=1,
-                         profiler='simple',
-                         # check_val_every_n_epoch=None,
-                         val_check_interval=1000,
-                         limit_val_batches=0.1,
-                         log_every_n_steps=50)
-    trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
+    if ON_GPU:
+        model.cuda()
+
+    train(model, train_loader, TRAIN_CFG['epochs'], val_loader, logger, ON_GPU)
+
+
+def train(model, train_loader, epochs, val_loader=None, logger=None, on_gpu=True):
+    for epoch in range(epochs):
+        epoch_train_loss = 0.
+        with tqdm(total=len(train_loader), leave=True) as pbar:
+            for bidx, batch in enumerate(train_loader):
+                if on_gpu:
+                    for key, value in batch.items():
+                        batch[key] = value.cuda()
+
+                losses = model.training_step(batch)
+
+                epoch_train_loss += losses['total_loss'].item()
+                logger.add_scalars('Train/Losses', losses, epoch * len(train_loader) + bidx)
+                pbar.set_postfix({
+                    'Epoch': f'{epoch+1}/{epochs}',
+                    'Mode': 'train',
+                    'AvgLoss': epoch_train_loss / (epoch + 1)
+                })
+                pbar.update(1)
+
+        if val_loader is not None:
+            epoch_val_loss = 0.
+            with tqdm(total=len(val_loader), leave=True) as pbar:
+                for bidx, batch in enumerate(val_loader):
+                    if on_gpu:
+                        for key, value in batch.items():
+                            batch[key] = value.cuda()
+
+                    losses = model.validation_step(batch)
+
+                    logger.add_scalars('Validation/Losses', losses, epoch * len(val_loader) + bidx)
+                    epoch_val_loss += losses['total_loss'].item()
+                    pbar.set_postfix({
+                        'Epoch': f'{epoch + 1}/{epochs}',
+                        'Mode': 'validation',
+                        'AvgLoss': epoch_val_loss / (epoch + 1)
+                    })
+                    pbar.update(1)
 
 
 def setup_dataloaders():
