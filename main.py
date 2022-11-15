@@ -42,7 +42,7 @@ def train(model, train_loader, epochs, val_loader=None, logger=None, on_gpu=True
                 pbar.set_postfix({
                     'Epoch': f'{epoch+1}/{epochs}',
                     'Mode': 'train',
-                    'AvgLoss': epoch_train_loss / (epoch + 1)
+                    'AvgLoss': epoch_train_loss / (bidx + 1)
                 })
                 pbar.update(1)
 
@@ -61,7 +61,7 @@ def train(model, train_loader, epochs, val_loader=None, logger=None, on_gpu=True
                     pbar.set_postfix({
                         'Epoch': f'{epoch + 1}/{epochs}',
                         'Mode': 'validation',
-                        'AvgLoss': epoch_val_loss / (epoch + 1)
+                        'AvgLoss': epoch_val_loss / (bidx + 1)
                     })
                     pbar.update(1)
 

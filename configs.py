@@ -22,7 +22,7 @@ DATA_CFG = {
     'train_txt': os.path.join(os.getcwd(), "assets", "tartanair_splits", "azure", "Easy", "train_files.txt"),
     'val_txt': os.path.join(os.getcwd(), "assets", "tartanair_splits", "azure",  "Easy", "val_files.txt"),
     'test_txt': os.path.join(os.getcwd(), "assets", "tartanair_splits", "Easy", "azure", "test_files_abandonedfactory_P010.txt"),
-    'num_workers': 8
+    'num_workers': 0
 }
 
 
